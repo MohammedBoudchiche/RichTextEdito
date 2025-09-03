@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Renderer from './Renderer'
 import { initialAST, type Ast } from './Utils/ast'
 import inputHandler from './Utils/inputHandler'
@@ -21,31 +21,26 @@ export default function Editor() {
       if(clickType ==='input'){
           {
           setTimeout(() => {
-                
+            
                 const selection = getTextSelection()
                   const range = selection?.range                  
                   console.log(parseDomToAst())
-                 /* const toggleFormatResult = toggleFormat(ast, clickType)
-                  if (toggleFormatResult) {
-                    console.log('toggleFormatResult is here°°°°°°', toggleFormatResult)
-                    setAst(toggleFormatResult)
-                  }*/
-        
           }, 0)   
         }
       } 
-      else {
-           const toggleFormatResult = toggleFormat(ast, clickType)
-                  if (toggleFormatResult) {
-                    setAst(toggleFormatResult)
-                  } 
-          }
-
-    
-    
+      else if (clickType === "Backspace") {
+        event.preventDefault();
+        setTimeout(() => {
+          const selection = getTextSelection();
+          const range = selection?.range;
+            const toggleFormatResult = toggleFormat(ast, clickType, selection!,range!);
+            if (toggleFormatResult) {
+              setAst(toggleFormatResult);
+            }
+        }, 0);
+      }        
   }      
-  console.log('hi ast here ',ast)
-      
+
   return (
     <>
     <Toolbar handleFormatClick={handleFormatClick}/>
