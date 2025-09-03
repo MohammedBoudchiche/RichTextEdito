@@ -1,4 +1,4 @@
-import type { ListBlock, ListItemBlock, TextBlock } from "./ast";
+import type { InlineElement, ListBlock, ListItemBlock, TextBlock } from "./ast";
 
 export type SearchResult = {
   found: boolean ;    // The answer if target was found
@@ -25,3 +25,15 @@ export type BlockResult = {
 
 export type BlockTypes = TextBlock | ListBlock | ListItemBlock
 export type BlockTextList = TextBlock | ListItemBlock
+
+
+export interface PreviousIsBlock {
+  id:boolean
+  block:ListBlock|TextBlock
+}
+
+export interface PreviousIsInline {
+  found: boolean
+  inline: InlineElement
+  parentBlockId:string
+}
