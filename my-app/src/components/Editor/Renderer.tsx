@@ -30,7 +30,6 @@ export default function Renderer({ast}:RendererProps){
         return element
     }
     const renderBlock =(blockElement: TextBlock | ListBlock| ListItemBlock) => {
-
         const key = blockElement.id
         const children = blockElement.children.map((inline,index)=>            
         {
