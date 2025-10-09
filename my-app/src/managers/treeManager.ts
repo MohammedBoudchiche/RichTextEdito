@@ -1,5 +1,6 @@
+import createTimeBaseID from "../components/Editor/Utils/newID";
 import type { TextSelection } from "../components/Editor/Utils/selection";
-import { type Ast, type InlineElement, type ListBlock, type ListItemBlock, type TextBlock } from "../core/ast";
+import { type Ast, type InlineElement, type InlineFormat, type ListBlock, type ListItemBlock, type TextBlock } from "../core/ast";
 import { ListBlockNode } from "../core/nodes/listBlockNode";
 import type { ListItemBlockNode } from "../core/nodes/listItemBlockNode";
 import type { ChildBlock } from "../core/types";
@@ -87,6 +88,112 @@ export class TreeManager {
       const cleantTree= this.cleanTreeBlock(updateBlock)
       const newAst =  this.creatCleanNewAst(this.ast,cleantTree)
       return newAst
+
+  }
+
+  public handleAddCharToNode(currentBlockId:string,selection:TextSelection):Ast{
+
+    const nodeManager = new NodesManager()
+    
+    const currentBlock = this.getBlockById(currentBlockId)as ListItemBlock|TextBlock    
+    const updateBlock = nodeManager.addLetterToNode(currentBlock,selection)
+
+    const cleantTree = this.cleanTreeBlock(updateBlock)
+    const newAst = this.creatCleanNewAst(this.ast, cleantTree);
+
+    return newAst;
+
+  }
+
+  public handleCreateNewBlock(currentBlockId:string,selection:TextSelection):Ast{
+    console.log('handleCreate new block')
+
+    const nodeManager = new NodesManager()
+    const currentBlock = this.getBlockById(currentBlockId)as ListItemBlock|TextBlock
+    const spreadBlock=nodeManager.spreadNode(currentBlock,selection)
+    
+    const newVisionBlockPart1=this._createNewVisionBlock(currentBlock as ListItemBlock|TextBlock,spreadBlock.part1)
+    const newVisionBlockPart2=this._createNewVisionBlock(currentBlock as ListItemBlock|TextBlock,spreadBlock.part2)
+    console.log("newVisionBlockPart1", newVisionBlockPart1);
+    console.log("newVisionBlockPart2", newVisionBlockPart2);
+
+    const index = currentBlock.type === 'list-item' 
+    ? this.ast.findIndex(child => child.id === this._findblockTreeParent(currentBlock.id).block?.id)
+    : this.ast.findIndex(child => child.id === currentBlock.id);
+    if(newVisionBlockPart1.type !== 'list-item'){
+      const newAst=this._replaceBlockToAst(this.ast,newVisionBlockPart1 as TextBlock,index)
+      const updateNewAst = this._addBlockToAst(newAst,newVisionBlockPart2 as TextBlock,index)
+      return updateNewAst
+    }
+    else {
+
+      const blockChildren = this._getBlockChildrenInBlock(currentBlock as ListItemBlock) as ListBlock[]
+
+      const newVisionBlockPart1=this._createNewVisionBlock(currentBlock as ListItemBlock,spreadBlock.part1)as ListItemBlock
+
+      newVisionBlockPart1.children.push(...blockChildren)
+      const newVisionBlockPart2=this._createNewVisionBlock(currentBlock as ListItemBlock,spreadBlock.part2)as ListItemBlock
+
+      const parentBlockId = this.findBlockParent(currentBlock.id)
+      const parentBlock = this.getBlockById(parentBlockId!) as ListBlock
+
+      const currentBlockIndex = parentBlock.children.findIndex(
+        (child) => child.id === currentBlock.id
+      );
+
+      const copyParentBlock = this._deepCopyBlock(parentBlock) as ListBlock
+
+      copyParentBlock.children.splice(currentBlockIndex,1,newVisionBlockPart1)
+      copyParentBlock.children.splice(currentBlockIndex+1,0,newVisionBlockPart2)
+      const newTreeBlock=this.cleanTreeBlock(copyParentBlock)
+
+      const newAst = this._replaceBlockToAst(this.ast,newTreeBlock as ListBlock,index)
+      return newAst
+    }
+    
+
+  }
+
+  private _getBlockChildrenInBlock(currentBlock: ListBlock|ListItemBlock):(ListBlock|ListItemBlock)[]{
+    const copyCurrentBlock = this._deepCopyBlock(currentBlock)
+    let arr:(ListBlock|ListItemBlock)[]=[]
+    for (const child of copyCurrentBlock.children) {
+      if (!isInlineElement(child)) [arr.push(child)];
+    }
+    return arr
+  }
+
+  private _createNewVisionBlock(currentBlock:TextBlock|ListItemBlock,content:string):TextBlock|ListItemBlock{
+
+    const formats: InlineFormat[] = currentBlock.children.reduce(
+      (acc: InlineFormat[], child) => {
+        if (isInlineElement(child)) {
+          acc.push(...child.formats);
+        }
+        return acc;
+      },
+      []
+    );
+    const inline:InlineElement={
+      text:content,
+      formats:formats
+    }
+
+    if(currentBlock.type==='list-item'){
+      const newObj: ListItemBlock = {
+        id: createTimeBaseID(),
+        type: 'list-item',
+        children:[inline]
+      };
+      return newObj
+    }else {
+      const newObj: TextBlock = {
+        id: createTimeBaseID(),
+        type: currentBlock.type,
+        children: [inline],
+      };
+      return newObj;
+    }
 
   }
 
@@ -398,6 +505,19 @@ export class TreeManager {
       return block;
     });
     return newAst;
+  }
+
+  private _addBlockToAst(ast:Ast,block:TextBlock|ListBlock,index:number):Ast{
+    const copyAst = this._deepCopyAst(ast);
+    copyAst.splice(index+1,0,block)
+    return copyAst
+  }
+
+   private _replaceBlockToAst(ast:Ast,block:TextBlock|ListBlock,index:number):Ast{
+    console.log('index',index)
+    const copyAst = this._deepCopyAst(ast);
+    copyAst.splice(index,1,block)
+    return copyAst
   }
 
   private cleanCurrentBlock(

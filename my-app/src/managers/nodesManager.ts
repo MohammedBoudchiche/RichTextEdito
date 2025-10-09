@@ -1,3 +1,4 @@
+import { Children } from "react";
 import type { TextSelection } from "../components/Editor/Utils/selection";
 import type { InlineElement, ListItemBlock, TextBlock } from "../core/ast";
 import { isInlineElement } from "../utils/typeGuards";
@@ -6,20 +7,71 @@ export class NodesManager {
   public removeCharFromNode(
     node: ListItemBlock | TextBlock,
     selection: TextSelection
-  ) :TextBlock|ListItemBlock{
+  ): TextBlock | ListItemBlock {
     const count = this._nodeLength(node);
     const fucusCount = selection.focusoffset;
     const sumOfChar = this.__nodePreviousSibling(selection.anchorNode!);
     const CharPosition = count - (count - (sumOfChar + fucusCount));
-    const updateNode = this._removeCharByIndex(node, CharPosition-1);
+    const updateNode = this._removeCharByIndex(node, CharPosition - 1);
 
     const copyUpdateNode = JSON.parse(JSON.stringify(updateNode));
-    const copyNode=JSON.parse(JSON.stringify(node));
+    const copyNode = JSON.parse(JSON.stringify(node));
     copyNode.children[copyUpdateNode!.index] = copyUpdateNode!.element;
-    return copyNode
-    
+    return copyNode;
   }
 
+  public addLetterToNode(node: ListItemBlock | TextBlock,selection: TextSelection): ListItemBlock | TextBlock {
+   
+    const newText = selection.anchorNode
+
+    const count = this._nodeLength(node);
+     
+    const index=this._findIndexOfChangedNode(node,count)
+    
+    const trgateNode = node.children[index!] as InlineElement
+     const result: InlineElement = {
+       text: newText!.textContent!,
+       formats:trgateNode.formats
+     };
+     const copyNode = JSON.parse(JSON.stringify(node)) as ListItemBlock|TextBlock
+     copyNode.children.splice(index!,1,result)
+    return copyNode
+     
+  }
+ 
+  public spreadNode(node:ListItemBlock|TextBlock,selection:TextSelection):{part1:string,part2:string}{
+   const count = this._nodeLength(node);
+   const fucusCount = selection.focusoffset;
+   const sumOfChar = this.__nodePreviousSibling(selection.anchorNode!);
+   const CharPosition = count - (count - (sumOfChar + fucusCount));
+
+
+    const text = this._nodeToString(node);
+
+    const part1 = text.substring(0, CharPosition); // "Hello"
+    const part2 = text.substring(CharPosition); // " World"
+
+    return {part1,part2}
+  }
+ 
+  private _nodeToString(node:TextBlock|ListItemBlock):String{
+    let text:String=''
+    let arrOFInineElement:InlineElement[]=[]
+
+    for(const child of node.children){
+
+      if(isInlineElement(child)){
+        arrOFInineElement.push(child)
+      }
+    }
+
+
+    for(const child of arrOFInineElement){
+      text+= child.text
+    }
+  return text
+  }
+ 
   private _nodeLength(node: ListItemBlock | TextBlock): number {
     let length: number = 0;
     node.children.map((child) => {
@@ -30,10 +82,12 @@ export class NodesManager {
     return length;
   }
 
+
+  
   private _removeCharByIndex(
     node: ListItemBlock | TextBlock,
     count: number
-  ): { index: number; element:InlineElement} | null {
+  ): { index: number; element: InlineElement } | null {
     // Input validation
     if (!node?.children || count < 0) {
       return null;
@@ -55,13 +109,49 @@ export class NodesManager {
         const localIndex = count - (globalIndex + 1);
 
         if (localIndex >= 0 && localIndex < childTextLength) {
-            const copyChild = JSON.parse(JSON.stringify(child));
+          const copyChild = JSON.parse(JSON.stringify(child));
           const newText = this._deleteChar(copyChild.text, localIndex);
           const result: InlineElement = {
             ...copyChild, // copy all existing properties
             text: newText, // update the text property
           };
-          return { index: childIndex,element:result};
+          return { index: childIndex, element: result };
+        }
+      }
+
+      globalIndex += childTextLength;
+    }
+
+    // Count exceeds total text length
+    return null;
+  }
+
+  private _findIndexOfChangedNode(
+    node: ListItemBlock | TextBlock,
+    count: number
+  ): number | null {
+    // Input validation
+    if (!node?.children || count < 0) {
+      return null;
+    }
+
+    let globalIndex = 0;
+
+    for (let childIndex = 0; childIndex < node.children.length; childIndex++) {
+      const child = node.children[childIndex];
+      if (!isInlineElement(child) || !child.text) {
+        continue;
+      }
+
+      const childTextLength = child.text.length;
+
+
+      // Check if our target count falls within this child's text range
+      if (count <= globalIndex + childTextLength) {
+        const localIndex = count - (globalIndex + 1);
+
+        if (localIndex >= 0 && localIndex < childTextLength) {
+          return childIndex
         }
       }
 
